@@ -13,17 +13,19 @@ type Flags struct {
 	file *bool
 	sl   *bool
 	ext  *bool
+	ex   string
 }
 
 func GetPath(args []string) string {
+	var filename string
 	for i := 0; i < len(args); i++ {
 		if strings.Contains(args[i], "/") {
-			return args[i]
+			filename = args[i]
 		} else if args[i] == "." {
-			return "./"
+			filename = "./"
 		}
 	}
-	return ""
+	return filename
 }
 
 func dirThree(path string, flags *Flags) {
@@ -56,11 +58,22 @@ func dirThree(path string, flags *Flags) {
 			if err2 != nil {
 				continue // не следует печать путь+название ссылки(директории)(это сделано выше)
 			}
-			fmt.Println(path + data[i].Name())
+			if *flags.file && err2 == nil && !*flags.ext {
+				fmt.Println(path + data[i].Name())
+			} else if strings.Contains(data[i].Name(), flags.ex) && *flags.ext && *flags.file {
+				fmt.Println(path + data[i].Name())
+			}
 		}
 	}
 }
 
+func searchEx(flags *Flags, args []string) string {
+	var exName string
+	if *flags.ext {
+		exName = args[len(args)-2]
+	}
+	return "." + exName
+}
 func main() {
 	var (
 		workPath string
@@ -69,8 +82,10 @@ func main() {
 	flags.dir = flag.Bool("d", false, "Use this flag for directory")
 	flags.file = flag.Bool("f", false, "Use this flag for files")
 	flags.sl = flag.Bool("sl", false, "Use this flag for symbolic links")
+	flags.ext = flag.Bool("ext", false, "Use this flag for ex files")
 	flag.Parse()
 	args := os.Args[1:]
 	workPath = GetPath(args)
+	flags.ex = searchEx(&flags, args)
 	dirThree(workPath, &flags)
 }
