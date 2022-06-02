@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -29,10 +30,9 @@ type Reciept struct {
 }
 
 type BDReader interface {
-	Read(input []byte) (Reciept, error)
+	Read(input []byte) ([]byte, error)
 }
 
-//func ()
 type bdJSON struct {
 	fileName *os.File
 }
@@ -41,69 +41,62 @@ type bdXML struct {
 	fileName *os.File
 }
 
-func (js *bdJSON) Read(input []byte) (Reciept, error) {
+func (js *bdJSON) Read(input []byte) ([]byte, error) {
 	var cakes Reciept
 	err := json.Unmarshal(input, &cakes)
 	Xml, err := xml.MarshalIndent(cakes, "", "    ")
-	fmt.Println(string(Xml))
-	return cakes, err
+	return Xml, err
 }
 
-func (t *bdXML) Read(input []byte) (Reciept, error) {
+func (t *bdXML) Read(input []byte) ([]byte, error) {
 	var cakes Reciept
 	err := xml.Unmarshal(input, &cakes)
 	Json, err := json.MarshalIndent(cakes, "", "  ")
-	fmt.Println(string(Json))
-	return cakes, err
+	return Json, err
 }
 
-func main() {
+func worker(filename string) error {
 	var (
 		JsonName *bdJSON
 		XmlName  *bdXML
-		//rec      Reciept ?????
-		err     error
-		RealExt string
+		RealExt  string
+		reciept  []byte
 	)
-	//var cakes Reciept
-	//if len(os.Args) != 2 {
-	//	return
-	//}
-	fileName := os.Args[1]
-	RealExt = filepath.Ext(fileName)
-	fileContent, err := os.Open(fileName)
+	RealExt = filepath.Ext(filename)
+	fileOpen, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer fileOpen.Close()
+
+	bytesRead, err := ioutil.ReadAll(fileOpen)
+	if err != nil {
+		return err
+	}
+	switch RealExt {
+	case ".xml":
+		reciept, err = XmlName.Read(bytesRead)
+	case ".json":
+		reciept, err = JsonName.Read(bytesRead)
+	default:
+		fmt.Println("wrong extension files")
+		os.Exit(-1)
+	}
+	fmt.Println(string(reciept))
+	return err
+}
+
+func main() {
+	flags := flag.Bool("f", false, "You must use -f flag")
+	flag.Parse()
+	if !(*flags) {
+		fmt.Println("Error input argument")
+		return
+	}
+	fileName := os.Args[2]
+	err := worker(fileName)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	defer fileContent.Close()
-
-	fmt.Println("The File is opened successfully...")
-
-	byteResult, err := ioutil.ReadAll(fileContent)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	if RealExt == ".xml" {
-		_, err = XmlName.Read(byteResult)
-	} else {
-		_, err = JsonName.Read(byteResult)
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	//fmt.Println(rec)
-	//err = json.Unmarshal(byteResult, &cakes)
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//
-	//XMLdata, err := xml.MarshalIndent(cakes, "", "    ")
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//fmt.Printf("%v\n", string(XMLdata))
 }
